@@ -1,0 +1,12 @@
+{
+  "name": "Kimatey Flow Navigator",
+  "short_name": "Kimatey",
+  "description": "Navigation intelligente et temps réel — Terra Flow Africa · Kimatey Enterprise",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0F3D3E",
+  "theme_color": "#0F3D3E",
+  "lang": "fr",
+  "icons": []
+}

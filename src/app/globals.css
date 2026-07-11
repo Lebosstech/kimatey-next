@@ -1,0 +1,8 @@
+/* Base reset shared by every route. Each page also ships its own scoped
+   stylesheet (index.css, dashboard.css, live.css, app.css) extracted from
+   the original HTML <style> blocks. */
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
