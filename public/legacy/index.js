@@ -119,10 +119,10 @@ const KCM_NODES=[
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
 // ONBOARDING
 const ONB=[
-  {ico:'fa-bell',title:'On vous prévient avant vous',txt:'Bouchon, accident ou inondation sur votre trajet : l\'alerte arrive avant même que vous ouvriez l\'app.'},
-  {ico:'fa-satellite-dish',title:'Réseau KCM — chaque téléphone, un capteur',txt:'Architecture edge computing distribuée : chaque smartphone devient un nœud qui analyse, signale et prédit le trafic en temps réel.'},
-  {ico:'fa-microphone',title:'Hey Kimatey — mains libres total',txt:'Parle, l\'IA agit. Signalement vocal en 15 secondes. Dialogue guidé niveau par niveau. 5 langues : FR, Dioula, Baoulé, Bété, Dida.'},
-  {ico:'fa-seedling',title:'Tes trajets, un impact réel',txt:'Chaque trajet collectif génère des KimaPoints. Alimente la VIE Foundation et accède au programme CITOYEN-PASS.'},
+  {ico:'fa-bell',accent:'#F2760B',tag:'Alertes prédictives',title:'On vous prévient avant vous',txt:'Bouchon, accident ou inondation sur votre trajet habituel : l\'alerte arrive avant même que vous ouvriez l\'app.'},
+  {ico:'fa-diagram-project',accent:'#186358',tag:'Réseau KCM',title:'Chaque téléphone, un capteur',txt:'Edge computing distribué : chaque smartphone devient un nœud qui analyse, signale et propage le trafic en temps réel — même hors-ligne.'},
+  {ico:'fa-microphone',accent:'#E94F37',tag:'Assistant vocal',title:'Hey Kimatey — mains libres',txt:'Parle, l\'IA agit. Signalement vocal en 15 secondes, dialogue guidé, 5 langues : FR, Dioula, Baoulé, Bété, Dida.'},
+  {ico:'fa-seedling',accent:'#1FA05A',tag:'Impact citoyen',title:'Tes trajets, un impact réel',txt:'Chaque trajet collectif génère des KimaPoints qui alimentent la VIE Foundation et le programme CITOYEN-PASS.'},
 ];
 let onbI=0;
 function handleStart(){
@@ -143,16 +143,70 @@ function handleStart(){
   gotoOnb();
 }
 
-function gotoOnb(){show('s-onboarding');buildDots();renderOnb(0);}
-function buildDots(){const c=document.getElementById('onb-dots');c.innerHTML='';ONB.forEach((_,i)=>{const d=document.createElement('div');d.className='onb-dot'+(i===0?' active':'');c.appendChild(d);});}
-function renderOnb(i){
-  document.getElementById('onb-ico').className='fa-solid '+ONB[i].ico;
-  document.getElementById('onb-title').textContent=ONB[i].title;
-  document.getElementById('onb-text').textContent=ONB[i].txt;
-  document.querySelectorAll('.onb-dot').forEach((d,j)=>d.classList.toggle('active',j===i));
-  document.getElementById('onb-btn').textContent=i===ONB.length-1?'Commencer':'Suivant';
+function gotoOnb(){
+  const sc=document.getElementById('s-onboarding');
+  sc.innerHTML=
+    '<div class="onb-hero">'
+      +'<button class="onb-skip" id="onb-skip">Passer</button>'
+      +'<div class="onb-rings"><span></span><span></span><span></span></div>'
+      +'<div class="onb-badge" id="onb-badge"><i class="fa-solid fa-bell" id="onb-ico"></i></div>'
+    +'</div>'
+    +'<div class="onb-body" id="onb-body">'
+      +'<div class="onb-tag" id="onb-tag"></div>'
+      +'<div class="onb-title" id="onb-title"></div>'
+      +'<div class="onb-text" id="onb-text"></div>'
+      +'<div class="onb-dots" id="onb-dots"></div>'
+    +'</div>'
+    +'<div class="onb-footer">'
+      +'<div class="onb-progress"><span id="onb-progress-bar"></span></div>'
+      +'<button class="btn-primary" id="onb-btn">Suivant</button>'
+    +'</div>';
+  onbI=0;
+  buildDots();
+  renderOnb(0);
+  document.getElementById('onb-btn').onclick=nextOnb;
+  document.getElementById('onb-skip').onclick=function(){show('s-login');};
+  attachOnbSwipe(sc);
+  show('s-onboarding');
 }
-function nextOnb(){if(onbI<ONB.length-1){onbI++;renderOnb(onbI);}else show('s-login');}
+function buildDots(){
+  const c=document.getElementById('onb-dots');c.innerHTML='';
+  ONB.forEach((_,i)=>{
+    const d=document.createElement('div');
+    d.className='onb-dot'+(i===0?' active':'');
+    d.onclick=function(){renderOnb(i);};
+    c.appendChild(d);
+  });
+}
+function renderOnb(i){
+  onbI=i;
+  const s=ONB[i];
+  document.getElementById('s-onboarding').style.setProperty('--accent',s.accent||'#186358');
+  document.getElementById('onb-ico').className='fa-solid '+s.ico;
+  const tag=document.getElementById('onb-tag');if(tag)tag.textContent=s.tag||'';
+  document.getElementById('onb-title').textContent=s.title;
+  document.getElementById('onb-text').textContent=s.txt;
+  document.querySelectorAll('.onb-dot').forEach((d,j)=>d.classList.toggle('active',j===i));
+  document.getElementById('onb-btn').textContent=(i===ONB.length-1)?'Commencer':'Suivant';
+  const bar=document.getElementById('onb-progress-bar');
+  if(bar)bar.style.width=Math.round((i+1)/ONB.length*100)+'%';
+  const body=document.getElementById('onb-body');
+  if(body){body.classList.remove('anim');void body.offsetWidth;body.classList.add('anim');}
+  const badge=document.getElementById('onb-badge');
+  if(badge){badge.classList.remove('pop');void badge.offsetWidth;badge.classList.add('pop');}
+}
+function nextOnb(){if(onbI<ONB.length-1){renderOnb(onbI+1);}else show('s-login');}
+function prevOnb(){if(onbI>0){renderOnb(onbI-1);}}
+function attachOnbSwipe(el){
+  let x0=null;
+  el.addEventListener('touchstart',function(e){x0=e.touches[0].clientX;},{passive:true});
+  el.addEventListener('touchend',function(e){
+    if(x0===null)return;
+    const dx=e.changedTouches[0].clientX-x0;x0=null;
+    if(Math.abs(dx)<40)return;
+    if(dx<0)nextOnb();else prevOnb();
+  },{passive:true});
+}
 // LOGIN
 
 function gotoApp(){

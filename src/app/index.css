@@ -23,17 +23,40 @@ button{border:none;cursor:pointer;font-family:'Inter',sans-serif}
 .splash-team{font-size:10px;color:rgba(255,255,255,.45);margin-top:4px}
 .splash-btn{position:absolute;bottom:40px;left:24px;right:24px}
 /* ONBOARDING */
-#s-onboarding{background:#fff}
-.onb-img{flex:1;background:var(--mint-100);display:flex;align-items:center;justify-content:center}
-.onb-img i{font-size:72px;color:var(--teal-600)}
-.onb-body{padding:22px 20px 8px}
-.onb-title{font-family:'Poppins',sans-serif;font-weight:700;font-size:18px;color:var(--ink-900);margin-bottom:8px}
-.onb-text{font-size:12.5px;color:var(--ink-600);line-height:1.6}
-.onb-dots{display:flex;gap:6px;justify-content:center;margin:14px 0}
-.onb-dot{height:6px;border-radius:3px;background:var(--ink-300)}
-.onb-dot.active{background:var(--teal-800);width:18px}
-.onb-dot:not(.active){width:6px}
-.onb-footer{padding:0 20px 24px}
+#s-onboarding{background:#fff;--accent:var(--teal-600)}
+/* Hero : dégradé + anneaux animés (écho au "capteur KCM") + badge lumineux */
+.onb-hero{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(125% 90% at 50% 0%, var(--mint-100), var(--mint-50) 55%, #fff)}
+.onb-skip{position:absolute;top:16px;right:16px;z-index:5;background:rgba(255,255,255,.72);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid var(--border);
+  color:var(--ink-600);font-size:12px;font-weight:700;padding:7px 15px;border-radius:999px;cursor:pointer}
+.onb-rings{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.onb-rings span{position:absolute;border-radius:50%;border:2px solid var(--accent);opacity:.16}
+.onb-rings span:nth-child(1){width:150px;height:150px;animation:onbRing 3s ease-out infinite}
+.onb-rings span:nth-child(2){width:224px;height:224px;animation:onbRing 3s ease-out .6s infinite}
+.onb-rings span:nth-child(3){width:300px;height:300px;animation:onbRing 3s ease-out 1.2s infinite}
+@keyframes onbRing{0%{transform:scale(.7);opacity:.26}70%{opacity:.05}100%{transform:scale(1.06);opacity:0}}
+.onb-badge{position:relative;z-index:2;width:112px;height:112px;border-radius:32px;background:var(--accent);
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 20px 45px -14px var(--accent);transition:background .45s ease,box-shadow .45s ease}
+.onb-badge.pop{animation:onbPop .5s cubic-bezier(.2,.8,.2,1.25)}
+.onb-badge i{font-size:48px}
+@keyframes onbPop{0%{transform:scale(.55);opacity:0}100%{transform:scale(1);opacity:1}}
+.onb-body{padding:26px 24px 4px;text-align:center}
+.onb-body.anim{animation:onbIn .38s ease}
+@keyframes onbIn{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:none}}
+.onb-tag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,#fff);padding:5px 12px;border-radius:999px;margin-bottom:12px}
+.onb-title{font-family:'Poppins',sans-serif;font-weight:700;font-size:21px;color:var(--ink-900);margin-bottom:10px;line-height:1.25}
+.onb-text{font-size:13px;color:var(--ink-600);line-height:1.65;max-width:340px;margin:0 auto}
+.onb-dots{display:flex;gap:7px;justify-content:center;margin:20px 0 0}
+.onb-dot{height:7px;border-radius:4px;background:var(--ink-300);transition:width .25s,background .25s;cursor:pointer}
+.onb-dot.active{background:var(--accent);width:22px}
+.onb-dot:not(.active){width:7px}
+.onb-footer{padding:14px 24px 26px}
+.onb-progress{height:4px;border-radius:2px;background:var(--border);margin-bottom:16px;overflow:hidden}
+.onb-progress span{display:block;height:100%;background:var(--accent);border-radius:2px;transition:width .4s ease;width:25%}
+@media(prefers-reduced-motion:reduce){.onb-rings span,.onb-badge.pop,.onb-body.anim{animation:none}}
 /* BTNS */
 .btn-primary{background:var(--teal-800);color:#fff;border-radius:999px;font-weight:700;font-size:13px;padding:13px 0;width:100%;text-align:center}
 .btn-accent{background:var(--amber-500);color:#221200;border-radius:999px;font-weight:700;font-size:13px;padding:13px 0;width:100%;text-align:center}
