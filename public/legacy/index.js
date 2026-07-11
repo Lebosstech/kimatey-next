@@ -2212,10 +2212,5 @@ function demoJury(){
     speak('Mode demonstration jury active. Reseau Kimatey Computing Mobile operationnel.');
   },1000);
 }
-// SW
-// Désactiver le SW ancien pour forcer le rechargement
-if('serviceWorker'in navigator){
-  navigator.serviceWorker.getRegistrations().then(regs=>{
-    regs.forEach(r=>r.unregister());
-  });
-}
+// SW — l'enregistrement est géré par le composant ServiceWorkerRegister (Next.js).
+// L'ancien bloc de désenregistrement a été retiré lors de la migration PWA.
