@@ -714,7 +714,7 @@ function doSignal(type,ico,name){
   div.innerHTML=`<div class="alert-ico" style="background:var(--coral-100)"><i class="fa-solid ${ico}" style="color:var(--coral-600)"></i></div><div style="flex:1"><div class="alert-title">${name} signalé — Position actuelle</div><div class="alert-meta">Par toi · À l'instant · En attente confirmation KCM</div></div><span class="pill pill-orange">En cours</span>`;
   el.prepend(div);
   document.getElementById('inc-badge').textContent=(3+totalSig-3)+' actives';
-  if(peerId)dbWrite(`${CH}/incidents`,{type,title:name+' — Réseau KCM',ts:Date.now(),severity:'Modéré'},true);
+  if(peerId)dbWrite(`${CH}/incidents`,{type,title:name+' — Réseau KCM',ts:Date.now(),severity:'Modéré',lat:lastLat||null,lng:lastLng||null},true);
   logUserAction(`A signalé : ${name}`,ico?'⚠️':'📍');
   calcEco();toast(`✅ ${name} signalé · +${pts} KimaPoints`);
 }
@@ -2214,3 +2214,20 @@ function demoJury(){
 }
 // SW — l'enregistrement est géré par le composant ServiceWorkerRegister (Next.js).
 // L'ancien bloc de désenregistrement a été retiré lors de la migration PWA.
+
+// Entrée vers la page "Trajets habituels & alertes prédictives" (fonctionnalité
+// phare du manuel §6). Réutilise le style des boutons de navigation existants.
+(function addTrajetsEntry(){
+  try{
+    var ref=document.querySelector('[onclick*="/dashboard"]');
+    if(ref&&ref.parentNode&&!document.getElementById('kfn-trajets-btn')){
+      var b=document.createElement('button');
+      b.id='kfn-trajets-btn';
+      b.className=ref.className;
+      if(ref.getAttribute('style'))b.setAttribute('style',ref.getAttribute('style'));
+      b.innerHTML='<i class="fa-solid fa-bell"></i> Trajets';
+      b.onclick=function(){window.location='/trajets';};
+      ref.parentNode.insertBefore(b,ref.nextSibling);
+    }
+  }catch(e){}
+})();

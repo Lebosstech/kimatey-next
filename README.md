@@ -95,6 +95,53 @@ L'app est installable et fonctionne hors-ligne :
 > cocher « Offline ». L'ancien bloc de désenregistrement de `index.html` a été
 > retiré du script legacy.
 
+## Notifications prédictives sur trajets habituels (fonctionnalité phare)
+
+Implémentation de la fonctionnalité prioritaire du manuel AbidjanFlow (§6) :
+prévenir l'utilisateur d'un incident sur son trajet habituel **avant même qu'il
+ouvre l'app**. Route dédiée : **`/trajets`** (accessible aussi via le bouton
+« Trajets » injecté dans l'app d'accueil).
+
+**Ce qui est implémenté (web/PWA), aligné sur le manuel :**
+
+| Étape du manuel §6 | Implémentation |
+| --- | --- |
+| Apprentissage des habitudes | `features/predictive/learn.ts` — clustering heuristique de l'historique `kfn_history` (destination × plage horaire × jours) |
+| Confirmation par l'utilisateur | Section « Trajets détectés » sur `/trajets` (confirmer + nommer) |
+| Surveillance continue | `PredictiveAlertsController` (monté dans le layout) : vérifie toutes les 90 s + au retour au premier plan |
+| Correspondance itinéraire ↔ incident | `match.ts` — distance géographique (rayon 1,5 km, corridor origine→destination) **et** fenêtre de départ (préavis 60 min) |
+| Déclenchement de l'alerte | `notify.ts` — notification via le service worker (`registration.showNotification`) |
+| Proposition d'action | Message type manuel §6.2 (« itinéraire alternatif / partir plus tôt ») |
+| Consentement & vie privée (loi n°2013-450) | Écran de consentement explicite + « Supprimer toutes mes données » (droit à l'effacement) |
+
+**Source des incidents** : Firebase RTDB (`kcm_abidjan/incidents`) lu via son
+endpoint REST (`incidents.ts`) — pas besoin du SDK Firebase sur la page. Les
+signalements legacy portent désormais des coordonnées (`lat`/`lng`) pour permettre
+le matching géographique.
+
+**Chemin « app fermée »** : le manuel recommande **Firebase Cloud Messaging
+(FCM)** — le backend fait le matching et envoie un push prêt à afficher. Le SW
+contient déjà les handlers `push` et `notificationclick` (`public/sw.js`) prêts à
+recevoir ces push. Il reste à brancher une Cloud Function d'envoi + les clés VAPID
+(travail backend, Phase 1 du manuel). En attendant, le chemin « app ouverte / en
+arrière-plan » fonctionne entièrement côté client.
+
+> **Limite web vs Flutter** : le manuel cible une app **Flutter** avec
+> géolocalisation en arrière-plan permanente et push garanti téléphone verrouillé.
+> Sur le web, la surveillance ne tourne que lorsque la PWA est vivante ; le push
+> téléphone-verrouillé nécessite FCM (handlers déjà en place). Le reste de la
+> logique (apprentissage, matching, consentement, notifications) est complet et
+> réutilisable tel quel.
+
+### Autres points du manuel
+
+- **Sécurité des clés API (Phase 0)** — ✅ **déjà fait** : les clés Groq/Gemini
+  sont côté serveur dans `/api/groq` et `/api/gemini`, jamais exposées au client.
+- **Auth téléphone / Google / invité, carte hors-ligne, score de conduite,
+  signalement communautaire** — présents dans le prototype porté.
+- **Non applicables ici** (cibles Flutter / Phase 2) : IA locale embarquée,
+  assistant vocal en langues locales, cash-out mobile money — voir manuel §3.3.
+
 ## Notes
 
 - **`sw_v4.js`** : conservé dans `public/` pour référence, mais **non utilisé**

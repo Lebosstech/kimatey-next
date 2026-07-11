@@ -161,6 +161,51 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(networkFirst(request, RUNTIME_CACHE));
 });
 
+// ─── Push (chemin "app fermée") ───────────────────────────────────────────────
+// Notifications prédictives envoyées par le backend via Firebase Cloud Messaging
+// (manuel §6.3). Le matching incident ↔ trajet habituel est fait côté serveur
+// (Cloud Function) qui envoie un payload prêt à afficher. Le SW ne fait que
+// présenter la notification, même quand la PWA n'est pas ouverte.
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (e) {
+    payload = { title: "Kimatey", body: event.data ? event.data.text() : "" };
+  }
+  const title = payload.title || "Alerte trajet — Kimatey";
+  const options = {
+    body: payload.body || "",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    tag: payload.tag || "kfn-predictive",
+    data: { url: payload.url || "/trajets" },
+    requireInteraction: true,
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Clic sur une notification → ouvrir/mettre au premier plan la bonne page.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/trajets";
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      for (const client of all) {
+        if ("focus" in client) {
+          client.navigate(url).catch(() => {});
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })()
+  );
+});
+
 // ─── Messages (mise à jour immédiate) ────────────────────────────────────────
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
