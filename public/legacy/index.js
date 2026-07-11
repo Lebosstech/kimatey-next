@@ -89,9 +89,33 @@ const FUEL_PRICE=695;
 // Labels affichage par mode
 const MODE_LABELS={voiture:'🚗 Auto',moto:'🏍️ Moto',pieton:'🚶 Piéton',course:'🏃 Course',gbaka:'🚌 Gbaka',velo:'🚲 Vélo'};
 
-function makeCursorIcon(mode){
-  const svg=CURSORS[mode]||CURSORS.voiture;
-  return L.divIcon({html:svg,iconSize:[36,36],iconAnchor:[18,18],className:''});
+const MODE_COLORS={voiture:'#FF9130',moto:'#F97316',velo:'#2ECC71',pieton:'#1C6B5C',course:'#E94F37',gbaka:'#0F3D3E'};
+const MODE_EMOJI={voiture:'🚗',moto:'🏍️',velo:'🚲',pieton:'🚶',course:'🏃',gbaka:'🚌'};
+
+// Puck de navigation : halo pulsant + faisceau de cap orienté + pastille du mode.
+// Le cap est appliqué au faisceau (pas au marqueur) → l'emoji reste droit et on
+// évite l'accumulation de transformations de l'ancienne version.
+function makeCursorIcon(mode,bearing){
+  const col=MODE_COLORS[mode]||'#FF9130';
+  const emoji=MODE_EMOJI[mode]||'🚗';
+  const b=Math.round(bearing||0);
+  const html=
+    '<div class="upuck">'
+      +'<div class="upuck-halo" style="background:'+col+'"></div>'
+      +'<div class="upuck-beam" style="transform:rotate('+b+'deg)"><i style="border-bottom-color:'+col+'"></i></div>'
+      +'<div class="upuck-dot" style="background:'+col+'">'+emoji+'</div>'
+    +'</div>';
+  return L.divIcon({html,iconSize:[48,48],iconAnchor:[24,24],className:'upuck-wrap'});
+}
+
+// Pastille "capteur KCM" : couleur selon la fluidité, anneau pulsant si critique.
+function makeNodeIcon(color,critical,glyph){
+  const html=
+    '<div class="kcm-node'+(critical?' crit':'')+'" style="--nc:'+(color||'#2ECC71')+'">'
+      +'<span class="kcm-node-ring"></span>'
+      +'<span class="kcm-node-dot">'+(glyph||'📡')+'</span>'
+    +'</div>';
+  return L.divIcon({html,iconSize:[30,30],iconAnchor:[15,15],className:'kcm-node-wrap'});
 }
 
 function calcBearing(lat1,lng1,lat2,lng2){
@@ -263,7 +287,7 @@ function initMap(){
   window._currentTileKey = 'voyager';
   peerId='kfn_'+Math.random().toString(36).slice(2,7);
   KCM_NODES.forEach(n=>{
-    L.circleMarker([n.lat,n.lng],{radius:8,fillColor:n.c,color:'#fff',weight:2,fillOpacity:.9})
+    L.marker([n.lat,n.lng],{icon:makeNodeIcon(n.c,n.spd<20)})
       .addTo(map).bindPopup(`<b>📡 ${n.n}</b><br>${n.spd} km/h`);
   });
   renderKCM();
@@ -327,8 +351,9 @@ function onGPSUpdate(pos){
   let displayMode=curMode;
   if(curMode==='pieton'&&speedKmh>7) displayMode='course';
 
-  // Créer ou mettre à jour le marqueur avec curseur personnalisé
-  const icon=makeCursorIcon(displayMode);
+  // Créer ou mettre à jour le puck de navigation (cap appliqué au faisceau).
+  const bearing=hd||lastBearing||0;
+  const icon=makeCursorIcon(displayMode,bearing);
   if(!uMark){
     uMark=L.marker([la,lo],{icon,zIndexOffset:1000}).addTo(map);
     map.setView([la,lo],17);
@@ -336,11 +361,6 @@ function onGPSUpdate(pos){
     uMark.setLatLng([la,lo]);
     uMark.setIcon(icon);
   }
-
-  // Rotation du curseur selon heading
-  const bearing=hd||lastBearing;
-  const iconEl=uMark.getElement();
-  if(iconEl) iconEl.style.transform+=' rotate('+bearing+'deg)';
 
   // Centrage carte en navigation
   if(navActive) map.setView([la,lo],17);
@@ -484,7 +504,7 @@ function startBroadcast(){setInterval(()=>{if(uMark){const{lat:la,lng:lo}=uMark.
 function initFB(){
   db.ref(`${CH}/live`).on('child_added',snap=>{
     const d=snap.val();if(!d||snap.key===peerId)return;
-    L.circleMarker([d.lat,d.lng],{radius:9,fillColor:'#2ECC71',color:'#fff',weight:2,fillOpacity:.9}).addTo(map).bindPopup(`<b>📡 ${d.name||'Nœud KCM'}</b><br>${d.spd||0} km/h`);
+    L.marker([d.lat,d.lng],{icon:makeNodeIcon('#2E8C77',false,'🚗')}).addTo(map).bindPopup(`<b>📡 ${d.name||'Nœud KCM'}</b><br>${d.spd||0} km/h`);
   });
 }
 // MODES
@@ -835,6 +855,47 @@ async function ask(t){
 }
 function addMsg(t,r){const c=document.getElementById('msgs');const d=document.createElement('div');d.className='bubble '+r;d.textContent=t;c.appendChild(d);c.scrollTop=9999;return d;}
 // VOIX
+// ── Conversation vocale dynamique (multi-tours, IA contextuelle) ──────────
+let kimiHistory=[];        // {role:'user'|'ai', text} — mémoire courte du dialogue
+let convoActive=false;     // un dialogue vocal est en cours (écoute continue)
+let sessionFinal=false;    // un résultat final a-t-il été capté dans la session micro
+const STOP_WORDS=['merci','au revoir','stop','arrête','arrete',"c'est bon",'ca ira','ça ira','bonne route','à plus','a plus','terminé','termine'];
+function pushHistory(role,text){kimiHistory.push({role,text});if(kimiHistory.length>10)kimiHistory=kimiHistory.slice(-10);}
+function cleanForSpeech(t){return t.replace(/[*_#`]/g,'').replace(/[^a-zA-ZÀ-ÿ0-9 ,.!?'’:-]/g,'').replace(/\s+/g,' ').trim().slice(0,240);}
+
+// Traite un message (voix ou texte) : IA contextuelle + éventuelle action, réponse
+// affichée et parlée, puis relance l'écoute pour un échange continu tant que
+// l'utilisateur poursuit le dialogue (mains libres).
+async function respondToUser(text,isVoice){
+  if(!text)return;
+  const msgs=document.getElementById('map-chat-msgs');
+  let bubble=null;
+  if(msgs){
+    const mc=document.getElementById('map-chat');if(mc)mc.style.display='block';
+    bubble=document.createElement('div');bubble.className='bubble ai';bubble.textContent='…';
+    msgs.appendChild(bubble);msgs.scrollTop=9999;
+  }
+  // Déclencher une action (navigation, etc.) si un mot-clé correspond
+  for(const kb of IA_KB){if(kb.k.some(k=>text.toLowerCase().includes(k))&&kb.fn){setTimeout(kb.fn,500);break;}}
+  const resp=await askGemini(text);
+  pushHistory('user',text);pushHistory('ai',resp);
+  if(bubble){bubble.textContent=resp;if(msgs)msgs.scrollTop=9999;}
+  else if(msgs){const r=document.createElement('div');r.className='bubble ai';r.textContent=resp;msgs.appendChild(r);msgs.scrollTop=9999;}
+  if(isVoice){
+    const stop=STOP_WORDS.some(w=>text.toLowerCase().includes(w));
+    speak(cleanForSpeech(resp),()=>{
+      if(convoActive&&!stop){openVoice(false);}   // rouvre le micro pour la suite
+      else{endConversation();}
+    });
+  }
+}
+
+function endConversation(){
+  convoActive=false;voiceOn=false;
+  closeVoiceUI();
+  wwRestartT=setTimeout(listenWW,900);
+}
+
 function initVoice(){
   if(!('webkitSpeechRecognition'in window||'SpeechRecognition'in window)){return;}
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -844,23 +905,30 @@ function initVoice(){
     const tr=document.getElementById('ia-transcript');
     if(tr)tr.textContent=t;
     if(e.results[0].isFinal){
-      closeVoice();
+      sessionFinal=true;
+      voiceOn=false;
+      try{recog.stop();}catch(err){}
+      closeVoiceUI();
       const msgs=document.getElementById('map-chat-msgs');
       if(msgs){
+        const mc=document.getElementById('map-chat');if(mc)mc.style.display='block';
         const d=document.createElement('div');d.className='bubble user';d.textContent=t;
         msgs.appendChild(d);msgs.scrollTop=9999;
-        document.getElementById('map-chat').style.display='block';
       }
-      const resp=localResp(t);
-      setTimeout(()=>{
-        if(msgs){const r=document.createElement('div');r.className='bubble ai';r.textContent=resp;msgs.appendChild(r);msgs.scrollTop=9999;}
-        speak(resp.replace(/[^a-zA-Z\u00C0-\u017E0-9 ,.'-]/g,'').slice(0,120));
-      },300);
-      for(const kb of IA_KB){if(kb.k.some(k=>t.toLowerCase().includes(k))&&kb.fn){setTimeout(kb.fn,500);break;}}
+      respondToUser(t,true);   // IA contextuelle + r\u00E9ponse parl\u00E9e + suite du dialogue
     }
   };
-  recog.onerror=()=>{closeVoiceUI();};
-  recog.onend=()=>{voiceOn=false;closeVoiceUI();wwRestartT=setTimeout(listenWW,800);};
+  recog.onerror=()=>{closeVoiceUI();if(convoActive)endConversation();};
+  recog.onend=()=>{
+    closeVoiceUI();
+    if(convoActive){
+      // Session micro termin\u00E9e : si rien n'a \u00E9t\u00E9 capt\u00E9 (silence), on cl\u00F4t le dialogue.
+      // Sinon, respondToUser rouvrira le micro apr\u00E8s avoir parl\u00E9.
+      if(!sessionFinal)endConversation();
+    }else{
+      voiceOn=false;wwRestartT=setTimeout(listenWW,800);
+    }
+  };
   listenWW();
 }
 
@@ -901,25 +969,24 @@ function setWWIndicator(on){
   if(fab)fab.classList.toggle('kimi-ww-on',on);
 }
 
-function openVoice(){
-  voiceOn=true;
+function openVoice(greet){
+  voiceOn=true;convoActive=true;sessionFinal=false;
   const pill=document.getElementById('ia-listening');
   if(pill)pill.style.display='flex';
   const tr=document.getElementById('ia-transcript');
   if(tr)tr.textContent='';
   const btn=document.getElementById('fab-voice');
-  if(btn){btn.style.background='var(--amber-500)';btn.querySelector('i').style.color='#221200';}
+  if(btn){btn.style.background='var(--amber-500)';const ic=btn.querySelector('i');if(ic)ic.style.color='#221200';}
   const fab=document.getElementById('kimi-fab');
   if(fab){fab.classList.remove('kimi-ww-on');fab.classList.add('kimi-active-listen');}
-  if(recog){try{recog.abort();setTimeout(()=>recog.start(),100);}catch(e){}}
-  speak("Je t'ecoute");
+  if(recog){try{recog.abort();setTimeout(()=>{try{recog.start();}catch(e){}},120);}catch(e){}}
+  if(greet!==false)speak("Je t'écoute");   // pas de salutation sur les tours de suivi
 }
 
 function closeVoice(){
   if(recog){try{recog.stop();}catch(e){}}
-  voiceOn=false;closeVoiceUI();
-  // Reprendre l'écoute du mot d'activation dès que la commande vocale est terminée
-  wwRestartT=setTimeout(listenWW,800);
+  if(window.speechSynthesis){try{window.speechSynthesis.cancel();}catch(e){}}
+  endConversation();
 }
 
 function closeVoiceUI(){
@@ -931,11 +998,12 @@ function closeVoiceUI(){
   if(fab)fab.classList.remove('kimi-active-listen');
 }
 
-function speak(t){
-  if(!window.speechSynthesis)return;
+function speak(t,onDone){
+  if(!window.speechSynthesis){if(onDone)onDone();return;}
   window.speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(t);
-  u.lang='fr-FR';u.rate=0.88;u.pitch=1.0;
+  u.lang='fr-FR';u.rate=0.92;u.pitch=1.0;
+  if(onDone){u.onend=onDone;u.onerror=onDone;}
   window.speechSynthesis.speak(u);
 }
 // ACCÉLÉRO
@@ -1786,12 +1854,18 @@ function renderBadges() {
 
 // ── GEMINI IA ─────────────────────────────────────────────────
 async function askGemini(message) {
+  // Historique récent → échanges contextuels et dynamiques (le message courant
+  // n'est pas encore dans kimiHistory à ce stade).
+  const hist = kimiHistory.slice(-6)
+    .map(m => (m.role === 'user' ? 'Utilisateur' : 'Kimi') + ': ' + m.text)
+    .join('\n');
   try {
     const r = await fetch('/api/gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message,
+        message: (hist ? 'Historique récent de la conversation :\n' + hist + '\n\n' : '')
+          + 'Message actuel : ' + message,
         context: `${KCM_NODES.length} nœuds KCM, mode ${curMode}, vitesse ${currentSpeed}km/h, score ${drScore}/100, ${incidents.length} incidents`
       })
     });
@@ -1823,8 +1897,9 @@ async function kimiSend() {
   }
 
   const resp = await askGemini(msg);
+  pushHistory('user', msg); pushHistory('ai', resp);
   if (typing) typing.textContent = resp;
-  speak(resp.replace(/[^a-zA-ZÀ-ÿ0-9 ,.!?'-]/g, '').slice(0, 120));
+  speak(cleanForSpeech(resp));
   checkBadges();
 }
 
