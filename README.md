@@ -67,13 +67,37 @@ Bons premiers candidats : la barre de navigation, l'onboarding, l'écran de logi
 Leaflet devra être chargé via `dynamic(() => import(...), { ssr: false })` une fois
 la carte convertie en composant.
 
+## PWA (Progressive Web App)
+
+L'app est installable et fonctionne hors-ligne :
+
+- **Manifeste** — `public/manifest.json` : nom, couleurs de marque, mode
+  `standalone`, icônes 192/512 (`any maskable`) et raccourcis (`/dashboard`,
+  `/live`).
+- **Icônes** — `public/icons/` (générées aux couleurs Kimatey : fond teal,
+  badge ambre, flèche de navigation) + `apple-touch-icon` pour iOS.
+- **Service worker** — `public/sw.js` (remplace `sw_v4.js`). Stratégies de
+  cache par ressource :
+  - Tuiles carto (OSM / CartoDB) → **cache-first** (cartes hors-ligne)
+  - Géocodage Nominatim / routage OSRM → **network-first** avec repli cache
+  - Polices & libs CDN (Google Fonts, Font Awesome, Leaflet, unpkg) → **stale-while-revalidate**
+  - Chunks Next.js `/_next/static/` → **cache-first** (hashés, sûrs)
+  - Navigations → **network-first**, repli sur la dernière page / l'accueil hors-ligne
+  - Firebase temps réel & proxies `/api/*` → **réseau seul** (jamais de cache)
+- **Enregistrement** — `ServiceWorkerRegister` (monté dans le layout) enregistre
+  le SW **en production uniquement** (évite de casser le HMR en dev) et recharge
+  proprement à chaque mise à jour.
+- **Installation** — `InstallPrompt` capture `beforeinstallprompt` et affiche une
+  bannière « Installer » discrète et masquable (cachée si déjà installée).
+
+> Le SW ne s'enregistre qu'en **production**. Pour tester le hors-ligne :
+> `npm run build && npm start`, puis DevTools → Application → Service Workers /
+> cocher « Offline ». L'ancien bloc de désenregistrement de `index.html` a été
+> retiré du script legacy.
+
 ## Notes
 
-- **PWA / Service Worker** : `public/sw_v4.js` est conservé pour parité, mais
-  l'app d'origine le désenregistre volontairement au démarrage (comportement
-  préservé). Pour réactiver le mode hors-ligne, utiliser `@serwist/next` ou
-  `next-pwa` plutôt que le SW manuel.
-- **Icônes du manifeste** : `public/manifest.json` a un tableau `icons` vide
-  (aucune icône n'existait dans le projet d'origine) — à compléter.
+- **`sw_v4.js`** : conservé dans `public/` pour référence, mais **non utilisé**
+  (remplacé par `public/sw.js`). Supprimable.
 - **Clé Firebase** : la config Firebase web est publique par design (présente
   dans le code client d'origine) ; la sécurité repose sur les règles Firebase.

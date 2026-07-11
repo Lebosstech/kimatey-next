@@ -1,15 +1,27 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import InstallPrompt from "@/components/InstallPrompt";
 
 export const metadata: Metadata = {
   title: "Kimatey Flow Navigator",
   description:
     "Kimatey Flow Navigator — Terra Flow Africa · Kimatey Enterprise",
   manifest: "/manifest.json",
+  applicationName: "Kimatey",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Kimatey",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icons/apple-touch-icon-180.png", sizes: "180x180" },
+    ],
   },
 };
 
@@ -48,7 +60,11 @@ export default function RootLayout({
           href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <ServiceWorkerRegister />
+        <InstallPrompt />
+      </body>
     </html>
   );
 }
