@@ -2215,19 +2215,24 @@ function demoJury(){
 // SW — l'enregistrement est géré par le composant ServiceWorkerRegister (Next.js).
 // L'ancien bloc de désenregistrement a été retiré lors de la migration PWA.
 
-// Entrée vers la page "Trajets habituels & alertes prédictives" (fonctionnalité
-// phare du manuel §6). Réutilise le style des boutons de navigation existants.
-(function addTrajetsEntry(){
+// Entrées vers les nouvelles pages "Trajets" (notifications prédictives, §6) et
+// "Réseau" (mesh offline). Réutilisent le style des boutons de nav existants.
+(function addFeatureEntries(){
   try{
     var ref=document.querySelector('[onclick*="/dashboard"]');
-    if(ref&&ref.parentNode&&!document.getElementById('kfn-trajets-btn')){
+    if(!ref||!ref.parentNode)return;
+    function mk(id,icon,label,href){
+      if(document.getElementById(id))return null;
       var b=document.createElement('button');
-      b.id='kfn-trajets-btn';
-      b.className=ref.className;
+      b.id=id;b.className=ref.className;
       if(ref.getAttribute('style'))b.setAttribute('style',ref.getAttribute('style'));
-      b.innerHTML='<i class="fa-solid fa-bell"></i> Trajets';
-      b.onclick=function(){window.location='/trajets';};
-      ref.parentNode.insertBefore(b,ref.nextSibling);
+      b.innerHTML='<i class="fa-solid '+icon+'"></i> '+label;
+      b.onclick=function(){window.location=href;};
+      return b;
     }
+    var t=mk('kfn-trajets-btn','fa-bell','Trajets','/trajets');
+    if(t)ref.parentNode.insertBefore(t,ref.nextSibling);
+    var r=mk('kfn-reseau-btn','fa-diagram-project','Réseau','/reseau');
+    if(r)ref.parentNode.insertBefore(r,(t||ref).nextSibling);
   }catch(e){}
 })();
