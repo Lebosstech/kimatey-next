@@ -111,11 +111,11 @@ function makeCursorIcon(mode,bearing){
 // Pastille "capteur KCM" : couleur selon la fluidité, anneau pulsant si critique.
 function makeNodeIcon(color,critical,glyph){
   const html=
-    '<div class="kcm-node'+(critical?' crit':'')+'" style="--nc:'+(color||'#2ECC71')+'">'
-      +'<span class="kcm-node-ring"></span>'
-      +'<span class="kcm-node-dot">'+(glyph||'📡')+'</span>'
+    '<div class="kcm-pin'+(critical?' crit':'')+'" style="--nc:'+(color||'#2ECC71')+'">'
+      +'<span class="kcm-pin-ring"></span>'
+      +'<span class="kcm-pin-dot">'+(glyph||'📡')+'</span>'
     +'</div>';
-  return L.divIcon({html,iconSize:[30,30],iconAnchor:[15,15],className:'kcm-node-wrap'});
+  return L.divIcon({html,iconSize:[30,30],iconAnchor:[15,15],className:'kcm-pin-wrap'});
 }
 
 function calcBearing(lat1,lng1,lat2,lng2){
@@ -868,23 +868,19 @@ function cleanForSpeech(t){return t.replace(/[*_#`]/g,'').replace(/[^a-zA-ZÀ-ÿ
 // l'utilisateur poursuit le dialogue (mains libres).
 async function respondToUser(text,isVoice){
   if(!text)return;
-  const msgs=document.getElementById('map-chat-msgs');
-  let bubble=null;
-  if(msgs){
-    const mc=document.getElementById('map-chat');if(mc)mc.style.display='block';
-    bubble=document.createElement('div');bubble.className='bubble ai';bubble.textContent='…';
-    msgs.appendChild(bubble);msgs.scrollTop=9999;
-  }
+  // Afficher l'échange dans le chat Kimi (surface visible) + le parler.
+  if(typeof addKimiMsg==='function')addKimiMsg(text,'user');
+  const typing=(typeof addKimiMsg==='function')?addKimiMsg('…','ai'):null;
   // Déclencher une action (navigation, etc.) si un mot-clé correspond
   for(const kb of IA_KB){if(kb.k.some(k=>text.toLowerCase().includes(k))&&kb.fn){setTimeout(kb.fn,500);break;}}
   const resp=await askGemini(text);
   pushHistory('user',text);pushHistory('ai',resp);
-  if(bubble){bubble.textContent=resp;if(msgs)msgs.scrollTop=9999;}
-  else if(msgs){const r=document.createElement('div');r.className='bubble ai';r.textContent=resp;msgs.appendChild(r);msgs.scrollTop=9999;}
+  if(typing){typing.textContent=resp;}
+  else if(typeof addKimiMsg==='function'){addKimiMsg(resp,'ai');}
   if(isVoice){
     const stop=STOP_WORDS.some(w=>text.toLowerCase().includes(w));
     speak(cleanForSpeech(resp),()=>{
-      if(convoActive&&!stop){openVoice(false);}   // rouvre le micro pour la suite
+      if(convoActive&&!stop){openVoice(false);}   // rouvre le micro pour la suite du dialogue
       else{endConversation();}
     });
   }

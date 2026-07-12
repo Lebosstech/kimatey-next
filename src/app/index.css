@@ -66,14 +66,14 @@ button{border:none;cursor:pointer;font-family:'Inter',sans-serif}
 .upuck-beam{position:absolute;inset:0;transform-origin:50% 50%}
 .upuck-beam i{position:absolute;left:50%;top:1px;transform:translateX(-50%);width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:15px solid;filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));opacity:.92}
 .upuck-dot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:28px;height:28px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:14px;z-index:2}
-/* Pastille capteur KCM */
-.kcm-node-wrap{background:none!important;border:none!important}
-.kcm-node{position:relative;width:30px;height:30px}
-.kcm-node-ring{position:absolute;left:50%;top:50%;width:24px;height:24px;border-radius:50%;transform:translate(-50%,-50%);background:var(--nc,#2ECC71);opacity:.22}
-.kcm-node.crit .kcm-node-ring{animation:kcmPulse 1.6s ease-out infinite}
+/* Pastille capteur KCM (classe .kcm-pin — distincte de .kcm-node du panneau liste) */
+.kcm-pin-wrap{background:none!important;border:none!important}
+.kcm-pin{position:relative;width:30px;height:30px}
+.kcm-pin-ring{position:absolute;left:50%;top:50%;width:24px;height:24px;border-radius:50%;transform:translate(-50%,-50%);background:var(--nc,#2ECC71);opacity:.22}
+.kcm-pin.crit .kcm-pin-ring{animation:kcmPulse 1.6s ease-out infinite}
 @keyframes kcmPulse{0%{transform:translate(-50%,-50%) scale(1);opacity:.4}70%{opacity:0}100%{transform:translate(-50%,-50%) scale(2.3);opacity:0}}
-.kcm-node-dot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;background:var(--nc,#2ECC71);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:11px}
-@media(prefers-reduced-motion:reduce){.upuck-halo,.kcm-node.crit .kcm-node-ring{animation:none}}
+.kcm-pin-dot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;background:var(--nc,#2ECC71);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:11px}
+@media(prefers-reduced-motion:reduce){.upuck-halo,.kcm-pin.crit .kcm-pin-ring{animation:none}}
 /* BTNS */
 .btn-primary{background:var(--teal-800);color:#fff;border-radius:999px;font-weight:700;font-size:13px;padding:13px 0;width:100%;text-align:center}
 .btn-accent{background:var(--amber-500);color:#221200;border-radius:999px;font-weight:700;font-size:13px;padding:13px 0;width:100%;text-align:center}
